@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/user_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../services/coupang_partners_service.dart';
 import '../../utils/app_theme.dart';
 
@@ -16,8 +17,6 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
 
   @override
   Widget build(BuildContext context) {
@@ -31,17 +30,50 @@ class _SettingsScreenState extends State<SettingsScreen> {
           children: [
             // 알림 설정
             _buildSectionTitle('알림'),
-            _buildSettingsCard([
-              _buildSwitchTile(
-                icon: Icons.notifications_outlined,
-                title: '푸시 알림',
-                subtitle: '식단 알림, 장보기 알림 등',
-                value: _notificationsEnabled,
-                onChanged: (value) {
-                  setState(() => _notificationsEnabled = value);
-                },
-              ),
-            ]),
+            Consumer<NotificationProvider>(
+              builder: (context, notifProvider, _) => _buildSettingsCard([
+                _buildSwitchTile(
+                  icon: Icons.restaurant_menu_outlined,
+                  title: '식단 리마인더',
+                  subtitle: '매일 식단 확인 알림 (${notifProvider.mealReminderTimeString})',
+                  value: notifProvider.mealReminder,
+                  onChanged: notifProvider.toggleMealReminder,
+                  trailing: notifProvider.mealReminder
+                      ? TextButton(
+                          onPressed: () => _pickMealReminderTime(context, notifProvider),
+                          child: Text(
+                            notifProvider.mealReminderTimeString,
+                            style: const TextStyle(color: AppTheme.primaryGreen),
+                          ),
+                        )
+                      : null,
+                ),
+                _buildDivider(),
+                _buildSwitchTile(
+                  icon: Icons.shopping_cart_outlined,
+                  title: '장보기 리마인더',
+                  subtitle: '장보기 목록 알림',
+                  value: notifProvider.shoppingReminder,
+                  onChanged: notifProvider.toggleShoppingReminder,
+                ),
+                _buildDivider(),
+                _buildSwitchTile(
+                  icon: Icons.people_outline,
+                  title: '커뮤니티 알림',
+                  subtitle: '좋아요, 공유 알림',
+                  value: notifProvider.communityNotif,
+                  onChanged: notifProvider.toggleCommunityNotif,
+                ),
+                _buildDivider(),
+                _buildSwitchTile(
+                  icon: Icons.auto_awesome_outlined,
+                  title: 'AI 생성 완료 알림',
+                  subtitle: '식단 생성 완료 시 알림',
+                  value: notifProvider.aiGenerationNotif,
+                  onChanged: notifProvider.toggleAiGenerationNotif,
+                ),
+              ]),
+            ),
 
             // 화면 설정
             _buildSectionTitle('화면'),
@@ -153,23 +185,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required String subtitle,
     required bool value,
     required ValueChanged<bool> onChanged,
+    Widget? trailing,
   }) {
     return ListTile(
       leading: Icon(icon, color: Colors.grey.shade700),
       title: Text(title),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey.shade600,
-        ),
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
       ),
-      trailing: Switch(
+      trailing: trailing ?? Switch(
         value: value,
         onChanged: onChanged,
         activeColor: AppTheme.primaryGreen,
       ),
+      onTap: trailing != null ? () => onChanged(!value) : null,
     );
+  }
+
+  Future<void> _pickMealReminderTime(
+      BuildContext context, NotificationProvider provider) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: provider.mealReminderHour,
+        minute: provider.mealReminderMinute,
+      ),
+    );
+    if (picked != null) {
+      await provider.updateMealReminderTime(picked.hour, picked.minute);
+    }
   }
 
   Widget _buildNavigationTile({

@@ -10,6 +10,8 @@ import 'providers/user_provider.dart';
 import 'providers/meal_plan_provider.dart';
 import 'providers/shopping_list_provider.dart';
 import 'providers/theme_provider.dart';
+import 'providers/notification_provider.dart';
+import 'services/notification_service.dart';
 import 'utils/app_router.dart';
 import 'utils/app_theme.dart';
 
@@ -26,6 +28,9 @@ void main() async {
 
   // Hive 초기화 (로컬 캐싱)
   await Hive.initFlutter();
+
+  // 알림 초기화
+  await NotificationService().initialize();
 
   // 상태바 스타일 설정
   SystemChrome.setSystemUIOverlayStyle(
@@ -46,6 +51,7 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MealPlanProvider()),
         ChangeNotifierProvider(create: (_) => ShoppingListProvider()),

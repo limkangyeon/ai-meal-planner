@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../../providers/meal_plan_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/notification_service.dart';
 import '../../utils/app_theme.dart';
 
 class MealGenerationScreen extends StatefulWidget {
@@ -94,6 +96,11 @@ class _MealGenerationScreenState extends State<MealGenerationScreen> {
 
     if (result != null) {
       _updateStatus('식단 생성 완료! 🎉');
+      // AI 생성 완료 알림
+      final notifProvider = context.read<NotificationProvider>();
+      if (notifProvider.aiGenerationNotif) {
+        await NotificationService().showGenerationComplete();
+      }
       await Future.delayed(const Duration(milliseconds: 500));
       context.go('/home');
     } else {

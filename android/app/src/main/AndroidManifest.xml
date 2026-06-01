@@ -2,6 +2,11 @@
     
     <!-- 인터넷 권한 (API 호출) -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 알림 권한 (Android 13+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- 정확한 알람 스케줄 권한 -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     
     <application
         android:label="AI Meal Planner"
