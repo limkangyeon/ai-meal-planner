@@ -19,7 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
   }
 
   Future<void> _loadData() async {
@@ -124,25 +124,33 @@ class _HomeScreenState extends State<HomeScreen> {
           return _buildEmptyMealCard();
         }
 
-        // 오늘의 식단 찾기
+        // 오늘의 식단 찾기 (없으면 가장 가까운 날짜 표시)
         final today = DateTime.now();
+        final todayOnly = DateTime(today.year, today.month, today.day);
+
         DailyMealPlan? todayPlan;
-        try {
-          todayPlan = currentPlan.dailyPlans.firstWhere(
-            (plan) =>
-                plan.date.year == today.year &&
-                plan.date.month == today.month &&
-                plan.date.day == today.day,
-          );
-        } catch (_) {
-          todayPlan = null;
+        DailyMealPlan? nearestPlan;
+        Duration nearestDiff = const Duration(days: 999);
+
+        for (final plan in currentPlan.dailyPlans) {
+          final planDay = DateTime(plan.date.year, plan.date.month, plan.date.day);
+          final diff = planDay.difference(todayOnly).abs();
+          if (planDay == todayOnly) {
+            todayPlan = plan;
+            break;
+          }
+          if (diff < nearestDiff) {
+            nearestDiff = diff;
+            nearestPlan = plan;
+          }
         }
 
-        if (todayPlan == null) {
+        final displayPlan = todayPlan ?? nearestPlan;
+        if (displayPlan == null) {
           return _buildEmptyMealCard();
         }
 
-        return _buildMealSummaryCard(todayPlan, currentPlan.id);
+        return _buildMealSummaryCard(displayPlan, currentPlan.id);
       },
     );
   }
@@ -206,7 +214,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -230,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () => context.go('/meal-plan/$planId'),
+                onPressed: () => context.push('/meal-plan/$planId'),
                 child: const Text('전체보기'),
               ),
             ],
@@ -322,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.add_circle_outline,
             label: '새 식단',
             color: AppTheme.primaryGreen,
-            onTap: () => context.go('/generate-meal'),
+            onTap: () => context.push('/meal-plan'),
           ),
         ),
         const SizedBox(width: 12),
@@ -334,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               final provider = context.read<MealPlanProvider>();
               if (provider.currentPlan != null) {
-                context.go('/shopping-list/${provider.currentPlan!.id}');
+                context.push('/shopping-list/${provider.currentPlan!.id}');
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('먼저 식단을 생성해주세요')),
@@ -349,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icons.history,
             label: '히스토리',
             color: Colors.blue,
-            onTap: () => context.go('/profile'),
+            onTap: () => context.push('/history'),
           ),
         ),
       ],
@@ -362,27 +370,30 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 28),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
+    return Material(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withOpacity(0.2),
+        highlightColor: color.withOpacity(0.15),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20),
+          child: Column(
+            children: [
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -422,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: EdgeInsets.only(right: index < 2 ? 12 : 0),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(

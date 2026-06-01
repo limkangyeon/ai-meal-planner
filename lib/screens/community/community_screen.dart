@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/meal_plan.dart';
+import '../../providers/meal_plan_provider.dart';
 import '../../utils/app_theme.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -14,74 +17,31 @@ class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedCategory = '전체';
+  final Set<String> _likedPlanIds = {};
 
-  final List<String> _categories = [
-    '전체',
-    '다이어트',
-    '근육증가',
-    '건강관리',
-    '체중증가',
-  ];
-
-  // 샘플 데이터 (실제로는 Firestore에서 가져옴)
-  final List<Map<String, dynamic>> _sampleMealPlans = [
-    {
-      'id': '1',
-      'title': '일주일 다이어트 식단',
-      'category': '다이어트',
-      'likes': 152,
-      'days': 7,
-      'calories': 1500,
-      'description': '건강하게 체중 감량을 위한 균형 잡힌 식단',
-    },
-    {
-      'id': '2',
-      'title': '고단백 벌크업 식단',
-      'category': '근육증가',
-      'likes': 98,
-      'days': 5,
-      'calories': 2500,
-      'description': '근육량 증가를 위한 고단백 식단',
-    },
-    {
-      'id': '3',
-      'title': '직장인 간편 건강식',
-      'category': '건강관리',
-      'likes': 234,
-      'days': 7,
-      'calories': 1800,
-      'description': '바쁜 직장인을 위한 간편하고 건강한 식단',
-    },
-    {
-      'id': '4',
-      'title': '저탄고지 키토 식단',
-      'category': '다이어트',
-      'likes': 87,
-      'days': 14,
-      'calories': 1600,
-      'description': '케토제닉 다이어트를 위한 저탄수화물 식단',
-    },
-    {
-      'id': '5',
-      'title': '비건 영양 균형 식단',
-      'category': '건강관리',
-      'likes': 65,
-      'days': 7,
-      'calories': 1700,
-      'description': '채식주의자를 위한 영양 균형 식단',
-    },
-  ];
+  final List<String> _categories = ['전체', '다이어트', '근육증가', '건강관리', '체중증가', '기타'];
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<MealPlanProvider>().loadSharedMealPlans();
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
+  }
+
+  List<MealPlan> _filtered(List<MealPlan> plans) {
+    if (_selectedCategory == '전체') return plans;
+    return plans.where((p) {
+      final goal = (p as dynamic).dietGoalName ?? '';
+      return goal == _selectedCategory;
+    }).toList();
   }
 
   @override
@@ -100,28 +60,37 @@ class _CommunityScreenState extends State<CommunityScreen>
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // 카테고리 필터
-          _buildCategoryFilter(),
-          
-          // 식단 리스트
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildMealPlanList(sortByLikes: true),
-                _buildMealPlanList(sortByLikes: false),
-              ],
-            ),
-          ),
-        ],
+      body: Consumer<MealPlanProvider>(
+        builder: (context, provider, _) {
+          final plans = provider.sharedPlans;
+
+          return Column(
+            children: [
+              _buildCategoryFilter(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildList(
+                      plans: [..._filtered(plans)]..sort((a, b) => b.likes.compareTo(a.likes)),
+                      provider: provider,
+                    ),
+                    _buildList(
+                      plans: [..._filtered(plans)]..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+                      provider: provider,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _shareMealPlan,
+        onPressed: () => context.push('/meal-plan'),
         backgroundColor: AppTheme.primaryGreen,
-        icon: const Icon(Icons.share),
-        label: const Text('내 식단 공유'),
+        icon: const Icon(Icons.share, color: Colors.white),
+        label: const Text('내 식단 공유', style: TextStyle(color: Colors.white)),
       ),
     );
   }
@@ -129,7 +98,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   Widget _buildCategoryFilter() {
     return Container(
       height: 60,
-      padding: const EdgeInsets.symmetric(vertical: 12),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -137,17 +106,22 @@ class _CommunityScreenState extends State<CommunityScreen>
         itemBuilder: (context, index) {
           final category = _categories[index];
           final isSelected = category == _selectedCategory;
-          
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(category),
+              label: Text(
+                category,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppTheme.primaryGreen,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
               selected: isSelected,
-              onSelected: (selected) {
-                setState(() => _selectedCategory = category);
-              },
-              selectedColor: AppTheme.primaryGreen.withOpacity(0.2),
-              checkmarkColor: AppTheme.primaryGreen,
+              onSelected: (_) => setState(() => _selectedCategory = category),
+              backgroundColor: AppTheme.primaryGreen.withOpacity(0.12),
+              selectedColor: AppTheme.primaryGreen,
+              checkmarkColor: Colors.white,
+              side: BorderSide(color: AppTheme.primaryGreen.withOpacity(0.4)),
             ),
           );
         },
@@ -155,165 +129,113 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-  Widget _buildMealPlanList({required bool sortByLikes}) {
-    var filteredPlans = _selectedCategory == '전체'
-        ? _sampleMealPlans
-        : _sampleMealPlans
-            .where((p) => p['category'] == _selectedCategory)
-            .toList();
-
-    if (sortByLikes) {
-      filteredPlans.sort((a, b) => b['likes'].compareTo(a['likes']));
+  Widget _buildList({required List<MealPlan> plans, required MealPlanProvider provider}) {
+    if (provider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
 
-    if (filteredPlans.isEmpty) {
+    if (plans.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.restaurant_menu,
-              size: 80,
-              color: Colors.grey.shade300,
-            ),
+            Icon(Icons.restaurant_menu, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 16),
-            Text(
-              '아직 공유된 식단이 없어요',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
+            Text('아직 공유된 식단이 없어요', style: TextStyle(fontSize: 16, color: Colors.grey.shade600)),
             const SizedBox(height: 8),
-            Text(
-              '첫 번째로 식단을 공유해보세요!',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade500,
-              ),
-            ),
+            Text('첫 번째로 식단을 공유해보세요!', style: TextStyle(fontSize: 14, color: Colors.grey.shade500)),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: filteredPlans.length,
-      itemBuilder: (context, index) {
-        return _buildMealPlanCard(filteredPlans[index]);
-      },
+    return RefreshIndicator(
+      onRefresh: () => provider.loadSharedMealPlans(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: plans.length,
+        itemBuilder: (context, index) => _buildCard(plans[index], provider),
+      ),
     );
   }
 
-  Widget _buildMealPlanCard(Map<String, dynamic> plan) {
+  Widget _buildCard(MealPlan plan, MealPlanProvider provider) {
+    final isLiked = _likedPlanIds.contains(plan.id);
+    final dietGoal = plan.toFirestore()['dietGoalName'] as String?;
+    final authorName = plan.toFirestore()['authorName'] as String? ?? '익명';
+    final avgCalories = plan.dailyPlans.isNotEmpty
+        ? plan.averageNutrition.calories
+        : 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2))],
       ),
       child: InkWell(
-        onTap: () => _showMealPlanDetail(plan),
+        onTap: () => context.push('/meal-plan/${plan.id}'),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 카테고리 태그
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getCategoryColor(plan['category']).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      plan['category'],
-                      style: TextStyle(
-                        color: _getCategoryColor(plan['category']),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                  if (dietGoal != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _categoryColor(dietGoal).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                  ),
+                      child: Text(dietGoal, style: TextStyle(color: _categoryColor(dietGoal), fontSize: 12, fontWeight: FontWeight.w600)),
+                    )
+                  else
+                    const SizedBox.shrink(),
                   Row(
                     children: [
-                      const Icon(
-                        Icons.favorite,
-                        color: Colors.red,
-                        size: 18,
-                      ),
+                      Icon(Icons.favorite, color: isLiked ? Colors.red : Colors.grey.shade400, size: 18),
                       const SizedBox(width: 4),
-                      Text(
-                        '${plan['likes']}',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      Text('${plan.likes}', style: const TextStyle(fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ],
               ),
-              
               const SizedBox(height: 12),
-              
-              // 제목
               Text(
-                plan['title'],
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                '${plan.durationDays}일 식단',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              
-              const SizedBox(height: 8),
-              
-              // 설명
+              const SizedBox(height: 4),
               Text(
-                plan['description'],
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  height: 1.4,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                '${plan.startDate.month}/${plan.startDate.day} ~ ${plan.endDate.month}/${plan.endDate.day} · $authorName',
+                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
               ),
-              
               const SizedBox(height: 12),
-              
-              // 정보
               Row(
                 children: [
-                  _buildInfoChip(Icons.calendar_today, '${plan['days']}일'),
-                  const SizedBox(width: 12),
-                  _buildInfoChip(Icons.local_fire_department, '${plan['calories']}kcal/일'),
+                  _infoChip(Icons.calendar_today, '${plan.durationDays}일'),
+                  const SizedBox(width: 8),
+                  if (avgCalories > 0) _infoChip(Icons.local_fire_department, '${avgCalories}kcal/일'),
+                  const SizedBox(width: 8),
+                  _infoChip(Icons.restaurant, '${plan.ingredients.length}가지 재료'),
                 ],
               ),
-              
               const SizedBox(height: 12),
-              
-              // 버튼
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _likeMealPlan(plan['id']),
-                      icon: const Icon(Icons.favorite_border, size: 18),
-                      label: const Text('좋아요'),
+                      onPressed: isLiked ? null : () async {
+                        setState(() => _likedPlanIds.add(plan.id));
+                        await provider.likeSharedPlan(plan.id);
+                      },
+                      icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 18),
+                      label: Text(isLiked ? '좋아요 완료' : '좋아요'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),
@@ -323,9 +245,9 @@ class _CommunityScreenState extends State<CommunityScreen>
                   const SizedBox(width: 8),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _addToMyPlan(plan),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('내 식단에'),
+                      onPressed: () => context.push('/meal-plan/${plan.id}'),
+                      icon: const Icon(Icons.visibility, size: 18),
+                      label: const Text('상세보기'),
                     ),
                   ),
                 ],
@@ -337,177 +259,28 @@ class _CommunityScreenState extends State<CommunityScreen>
     );
   }
 
-  Widget _buildInfoChip(IconData icon, String text) {
+  Widget _infoChip(IconData icon, String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, borderRadius: BorderRadius.circular(8)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: Colors.grey.shade600),
+          Icon(icon, size: 13, color: Colors.grey.shade600),
           const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade700,
-            ),
-          ),
+          Text(text, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
         ],
       ),
     );
   }
 
-  Color _getCategoryColor(String category) {
+  Color _categoryColor(String category) {
     switch (category) {
-      case '다이어트':
-        return Colors.orange;
-      case '근육증가':
-        return Colors.blue;
-      case '건강관리':
-        return AppTheme.primaryGreen;
-      case '체중증가':
-        return Colors.purple;
-      default:
-        return Colors.grey;
+      case '다이어트': return Colors.orange;
+      case '근육증가': return Colors.blue;
+      case '건강관리': return AppTheme.primaryGreen;
+      case '체중증가': return Colors.purple;
+      default: return Colors.grey;
     }
-  }
-
-  void _showMealPlanDetail(Map<String, dynamic> plan) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) {
-          return SingleChildScrollView(
-            controller: scrollController,
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                Text(
-                  plan['title'],
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  plan['description'],
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // 상세 정보
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildDetailRow('기간', '${plan['days']}일'),
-                      const Divider(),
-                      _buildDetailRow('일 평균 칼로리', '${plan['calories']}kcal'),
-                      const Divider(),
-                      _buildDetailRow('카테고리', plan['category']),
-                      const Divider(),
-                      _buildDetailRow('좋아요', '${plan['likes']}명'),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _addToMyPlan(plan);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('내 식단에 추가하기'),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey.shade600,
-            ),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _likeMealPlan(String planId) {
-    // TODO: 좋아요 기능 구현
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('좋아요를 눌렀습니다!')),
-    );
-  }
-
-  void _addToMyPlan(Map<String, dynamic> plan) {
-    // TODO: 내 식단에 추가 기능 구현
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('"${plan['title']}"을(를) 내 식단에 추가했습니다!')),
-    );
-  }
-
-  void _shareMealPlan() {
-    // TODO: 내 식단 공유 기능 구현
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('내 식단 공유 기능은 준비 중입니다')),
-    );
   }
 }

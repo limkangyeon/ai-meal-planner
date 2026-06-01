@@ -7,7 +7,8 @@ import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
-  const ProfileSetupScreen({super.key});
+  final bool isEditing;
+  const ProfileSetupScreen({super.key, this.isEditing = false});
 
   @override
   State<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -25,6 +26,26 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final List<String> _dislikedFoods = [];
   int _mealsPerDay = 3;
   CookingDifficulty _cookingDifficulty = CookingDifficulty.medium;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isEditing) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final profile = context.read<UserProvider>().userProfile;
+        if (profile != null) {
+          setState(() {
+            _selectedGoal = profile.dietGoal;
+            _selectedAllergies.addAll(profile.allergies);
+            _preferredFoods.addAll(profile.preferredFoods);
+            _dislikedFoods.addAll(profile.dislikedFoods);
+            _mealsPerDay = profile.mealsPerDay;
+            _cookingDifficulty = profile.cookingDifficulty;
+          });
+        }
+      });
+    }
+  }
 
   // 텍스트 컨트롤러
   final _preferredFoodController = TextEditingController();
@@ -71,9 +92,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
 
     if (success) {
-      await userProvider.completeOnboarding();
-      if (mounted) {
-        context.go('/home');
+      if (widget.isEditing) {
+        if (mounted) context.pop();
+      } else {
+        await userProvider.completeOnboarding();
+        if (mounted) context.go('/home');
       }
     }
   }
@@ -502,9 +525,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 24),
                 Slider(
                   value: _mealsPerDay.toDouble(),
-                  min: 2,
+                  min: 1,
                   max: 5,
-                  divisions: 3,
+                  divisions: 4,
                   activeColor: AppTheme.primaryGreen,
                   onChanged: (value) {
                     setState(() => _mealsPerDay = value.round());
@@ -528,6 +551,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   String _getMealsDescription() {
     switch (_mealsPerDay) {
+      case 1:
+        return '하루 한 끼';
       case 2:
         return '점심, 저녁';
       case 3:

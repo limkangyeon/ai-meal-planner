@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/user_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/coupang_partners_service.dart';
 import '../../utils/app_theme.dart';
 
@@ -45,15 +46,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // 화면 설정
             _buildSectionTitle('화면'),
             _buildSettingsCard([
-              _buildSwitchTile(
-                icon: Icons.dark_mode_outlined,
-                title: '다크 모드',
-                subtitle: '어두운 테마 사용',
-                value: _darkModeEnabled,
-                onChanged: (value) {
-                  setState(() => _darkModeEnabled = value);
-                  // TODO: 실제 다크모드 적용
-                },
+              Consumer<ThemeProvider>(
+                builder: (context, themeProvider, _) => _buildSwitchTile(
+                  icon: Icons.dark_mode_outlined,
+                  title: '다크 모드',
+                  subtitle: '어두운 테마 사용',
+                  value: themeProvider.isDark,
+                  onChanged: (_) => themeProvider.toggle(),
+                ),
               ),
             ]),
 
@@ -70,17 +70,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildNavigationTile(
                 icon: Icons.description_outlined,
                 title: '이용약관',
-                onTap: () => _openUrl('https://example.com/terms'),
+                onTap: () => context.push('/terms'),
               ),
               _buildDivider(),
               _buildNavigationTile(
                 icon: Icons.privacy_tip_outlined,
                 title: '개인정보처리방침',
-                onTap: () => _openUrl('https://example.com/privacy'),
+                onTap: () => context.push('/privacy'),
               ),
               _buildDivider(),
               _buildNavigationTile(
-                icon: Icons.open_source,
+                icon: Icons.info_outline,
                 title: '오픈소스 라이선스',
                 onTap: () => showLicensePage(context: context),
               ),
@@ -133,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -213,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -269,7 +269,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(

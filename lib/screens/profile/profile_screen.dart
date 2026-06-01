@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/models.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/meal_plan_provider.dart';
 import '../../utils/app_theme.dart';
+import '../onboarding/profile_setup_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -17,7 +19,7 @@ class ProfileScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () => context.go('/settings'),
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
@@ -151,7 +153,7 @@ class ProfileScreen extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
@@ -204,7 +206,7 @@ class ProfileScreen extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -227,21 +229,21 @@ class ProfileScreen extends StatelessWidget {
               context,
               icon: Icons.history,
               title: '식단 히스토리',
-              onTap: () {},
+              onTap: () => context.push('/history?tab=0'),
             ),
             _buildDivider(),
             _buildMenuItem(
               context,
               icon: Icons.favorite_border,
               title: '좋아요한 식단',
-              onTap: () {},
+              onTap: () => context.push('/history?tab=2'),
             ),
             _buildDivider(),
             _buildMenuItem(
               context,
               icon: Icons.share,
               title: '공유한 식단',
-              onTap: () {},
+              onTap: () => context.push('/history?tab=1'),
             ),
             _buildDivider(),
             _buildMenuItem(
@@ -302,7 +304,7 @@ class ProfileScreen extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -334,11 +336,11 @@ class ProfileScreen extends StatelessWidget {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      onTap: () => context.go('/meal-plan/${plan.id}'),
+                      onTap: () => context.push('/meal-plan/${plan.id}'),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      tileColor: Colors.grey.shade100,
+                      tileColor: Theme.of(context).colorScheme.surface,
                       leading: Container(
                         width: 48,
                         height: 48,
@@ -371,6 +373,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _editProfile(BuildContext context) {
-    context.go('/profile-setup');
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const ProfileSetupScreen(isEditing: true),
+      ),
+    );
   }
 }

@@ -142,7 +142,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -177,7 +177,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -296,7 +296,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  tileColor: Colors.grey.shade100,
+                  tileColor: Theme.of(context).colorScheme.surface,
                   leading: Container(
                     width: 48,
                     height: 48,
@@ -335,7 +335,7 @@ class _MealPlanScreenState extends State<MealPlanScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
               primary: AppTheme.primaryGreen,
             ),
           ),

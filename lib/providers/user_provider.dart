@@ -32,6 +32,7 @@ class UserProvider extends ChangeNotifier {
     // 인증 상태 변화 감지
     _auth.authStateChanges().listen((User? user) async {
       _firebaseUser = user;
+      _error = null;
       if (user != null) {
         await _loadUserProfile();
       } else {
@@ -49,6 +50,14 @@ class UserProvider extends ChangeNotifier {
   Future<void> _loadUserProfile() async {
     if (_firebaseUser == null) return;
 
+    // 메모리에 기본 프로필을 먼저 설정 (Firestore 실패해도 앱이 동작하도록)
+    _userProfile ??= UserProfile(
+      id: _firebaseUser!.uid,
+      email: _firebaseUser!.email,
+      displayName: _firebaseUser!.displayName,
+      photoUrl: _firebaseUser!.photoURL,
+    );
+
     try {
       final doc = await _firestore
           .collection('users')
@@ -58,13 +67,6 @@ class UserProvider extends ChangeNotifier {
       if (doc.exists) {
         _userProfile = UserProfile.fromFirestore(doc);
       } else {
-        // 새 사용자인 경우 기본 프로필 생성
-        _userProfile = UserProfile(
-          id: _firebaseUser!.uid,
-          email: _firebaseUser!.email,
-          displayName: _firebaseUser!.displayName,
-          photoUrl: _firebaseUser!.photoURL,
-        );
         await _saveUserProfile();
       }
     } catch (e) {
@@ -154,6 +156,14 @@ class UserProvider extends ChangeNotifier {
     int? budgetMax,
     CookingDifficulty? cookingDifficulty,
   }) async {
+    if (_userProfile == null && _firebaseUser != null) {
+      _userProfile = UserProfile(
+        id: _firebaseUser!.uid,
+        email: _firebaseUser!.email,
+        displayName: _firebaseUser!.displayName,
+        photoUrl: _firebaseUser!.photoURL,
+      );
+    }
     if (_userProfile == null) return false;
 
     _setLoading(true);
@@ -186,6 +196,14 @@ class UserProvider extends ChangeNotifier {
 
   /// 온보딩 완료 처리
   Future<void> completeOnboarding() async {
+    if (_userProfile == null && _firebaseUser != null) {
+      _userProfile = UserProfile(
+        id: _firebaseUser!.uid,
+        email: _firebaseUser!.email,
+        displayName: _firebaseUser!.displayName,
+        photoUrl: _firebaseUser!.photoURL,
+      );
+    }
     if (_userProfile == null) return;
 
     _userProfile = _userProfile!.copyWith(onboardingCompleted: true);

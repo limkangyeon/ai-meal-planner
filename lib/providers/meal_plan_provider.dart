@@ -11,6 +11,7 @@ class MealPlanProvider extends ChangeNotifier {
 
   List<MealPlan> _mealPlans = [];
   MealPlan? _currentPlan;
+  List<MealPlan> _sharedPlans = [];
   bool _isLoading = false;
   bool _isGenerating = false;
   String? _error;
@@ -19,6 +20,7 @@ class MealPlanProvider extends ChangeNotifier {
   // Getters
   List<MealPlan> get mealPlans => _mealPlans;
   MealPlan? get currentPlan => _currentPlan;
+  List<MealPlan> get sharedPlans => _sharedPlans;
   bool get isLoading => _isLoading;
   bool get isGenerating => _isGenerating;
   String? get error => _error;
@@ -33,13 +35,13 @@ class MealPlanProvider extends ChangeNotifier {
       final snapshot = await _firestore
           .collection('mealPlans')
           .where('userId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
           .limit(20)
           .get();
 
       _mealPlans = snapshot.docs
           .map((doc) => MealPlan.fromFirestore(doc))
-          .toList();
+          .toList()
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       if (_mealPlans.isNotEmpty && _currentPlan == null) {
         _currentPlan = _mealPlans.first;
@@ -240,7 +242,10 @@ class MealPlanProvider extends ChangeNotifier {
 
   /// 특정 식단 가져오기
   Future<MealPlan?> getMealPlan(String planId) async {
-    // 먼저 로컬에서 찾기
+    // currentPlan에서 먼저 확인
+    if (_currentPlan?.id == planId) return _currentPlan;
+
+    // 로컬에서 찾기
     final local = _mealPlans.where((p) => p.id == planId).firstOrNull;
     if (local != null) return local;
 
@@ -254,6 +259,80 @@ class MealPlanProvider extends ChangeNotifier {
       debugPrint('식단 조회 실패: $e');
     }
     return null;
+  }
+
+  /// 공유된 식단 목록 로드 (커뮤니티)
+  Future<void> loadSharedMealPlans() async {
+    try {
+      final snapshot = await _firestore
+          .collection('sharedMealPlans')
+          .limit(30)
+          .get();
+      _sharedPlans = snapshot.docs
+          .map((doc) => MealPlan.fromFirestore(doc))
+          .toList()
+        ..sort((a, b) => b.likes.compareTo(a.likes));
+      notifyListeners();
+    } catch (e) {
+      debugPrint('공유 식단 로드 실패: $e');
+    }
+  }
+
+  /// 식단 공유
+  Future<bool> shareMealPlan(String planId, {String? authorName, String? dietGoalName}) async {
+    try {
+      final plan = await getMealPlan(planId);
+      if (plan == null) return false;
+
+      final data = plan.toFirestore();
+      if (authorName != null) data['authorName'] = authorName;
+      if (dietGoalName != null) data['dietGoalName'] = dietGoalName;
+
+      await _firestore.collection('sharedMealPlans').doc(planId).set(data);
+      await _firestore.collection('mealPlans').doc(planId).update({'isShared': true});
+
+      _currentPlan = _currentPlan?.id == planId ? _currentPlan!.copyWith(isShared: true) : _currentPlan;
+      _mealPlans = _mealPlans.map((p) => p.id == planId ? p.copyWith(isShared: true) : p).toList();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = '공유 실패: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// 식단 공유 취소
+  Future<bool> unshareMealPlan(String planId) async {
+    try {
+      await _firestore.collection('sharedMealPlans').doc(planId).delete();
+      await _firestore.collection('mealPlans').doc(planId).update({'isShared': false});
+
+      _currentPlan = _currentPlan?.id == planId ? _currentPlan!.copyWith(isShared: false) : _currentPlan;
+      _mealPlans = _mealPlans.map((p) => p.id == planId ? p.copyWith(isShared: false) : p).toList();
+      _sharedPlans.removeWhere((p) => p.id == planId);
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _error = '공유 취소 실패: $e';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// 공유 식단 좋아요
+  Future<void> likeSharedPlan(String planId) async {
+    try {
+      await _firestore.collection('sharedMealPlans').doc(planId).update({
+        'likes': FieldValue.increment(1),
+      });
+      _sharedPlans = _sharedPlans
+          .map((p) => p.id == planId ? p.copyWith(likes: p.likes + 1) : p)
+          .toList();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('좋아요 실패: $e');
+    }
   }
 
   void _setLoading(bool loading) {

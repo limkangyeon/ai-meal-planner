@@ -31,28 +31,22 @@ class GeminiService {
     required DateTime startDate,
     Function(double)? onProgress,
   }) async {
-    try {
-      onProgress?.call(0.1);
+    onProgress?.call(0.1);
 
-      final prompt = _buildMealPlanPrompt(userProfile, days, startDate);
-      
-      onProgress?.call(0.2);
+    final prompt = _buildMealPlanPrompt(userProfile, days, startDate);
 
-      final response = await _callGeminiAPI(prompt);
-      
-      onProgress?.call(0.7);
+    onProgress?.call(0.2);
 
-      if (response == null) return null;
+    final response = await _callGeminiAPI(prompt);
+    if (response == null) throw Exception('API 응답이 비어있습니다');
 
-      final parsedData = _parseMealPlanResponse(response, days, startDate);
-      
-      onProgress?.call(1.0);
+    onProgress?.call(0.7);
 
-      return parsedData;
-    } catch (e) {
-      debugPrint('식단 생성 오류: $e');
-      return null;
-    }
+    final parsedData = _parseMealPlanResponse(response, days, startDate);
+
+    onProgress?.call(1.0);
+
+    return parsedData;
   }
 
   /// 단일 끼니 재생성
@@ -83,8 +77,7 @@ class GeminiService {
   /// Gemini API 호출
   Future<String?> _callGeminiAPI(String prompt) async {
     if (_apiKey.isEmpty) {
-      debugPrint('Gemini API 키가 설정되지 않았습니다');
-      return null;
+      throw Exception('Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.');
     }
 
     final url = Uri.parse('$_baseUrl/models/$_model:generateContent?key=$_apiKey');
@@ -103,23 +96,23 @@ class GeminiService {
           ],
           'generationConfig': {
             'temperature': 0.7,
-            'maxOutputTokens': 8192,
+            'maxOutputTokens': 65536,
             'responseMimeType': 'application/json',
           },
         }),
-      );
+      ).timeout(const Duration(seconds: 90));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final text = data['candidates'][0]['content']['parts'][0]['text'];
         return text;
       } else {
-        debugPrint('API 오류: ${response.statusCode} - ${response.body}');
-        return null;
+        throw Exception('API 오류 ${response.statusCode}: ${response.body}');
       }
+    } on Exception {
+      rethrow;
     } catch (e) {
-      debugPrint('API 호출 실패: $e');
-      return null;
+      throw Exception('API 호출 실패: $e');
     }
   }
 
@@ -146,6 +139,7 @@ $userInfo
 5. 알러지 재료는 절대 포함하지 않음
 6. 비선호 음식은 가능한 제외
 7. 선호 음식은 적절히 포함
+8. description은 15자 이내, recipe는 30자 이내로 간결하게 작성
 
 ## 출력 형식 (JSON)
 다음 형식으로 정확히 출력해주세요:
@@ -157,8 +151,8 @@ $userInfo
         {
           "id": "unique_id",
           "name": "음식 이름",
-          "type": 0,  // 0: 아침, 1: 점심, 2: 저녁, 3: 간식
-          "description": "간단한 설명",
+          "type": 0,
+          "description": "한 줄 설명(15자 이내)",
           "nutrition": {
             "calories": 500,
             "carbohydrates": 60,
@@ -166,7 +160,7 @@ $userInfo
             "fat": 15
           },
           "ingredients": ["재료1", "재료2"],
-          "recipe": "간단한 조리법",
+          "recipe": "조리법(30자 이내)",
           "cookingTime": 20
         }
       ]
@@ -178,7 +172,7 @@ $userInfo
       "name": "재료명",
       "quantity": 2,
       "unit": "개",
-      "category": "채소"  // 채소, 과일, 육류, 해산물, 유제품, 곡류, 조미료, 기타
+      "category": "채소"
     }
   ]
 }
@@ -227,7 +221,7 @@ ${reason != null ? '## 재생성 이유\n$reason\n' : ''}
   }
 
   /// 식단 응답 파싱
-  GeneratedMealData? _parseMealPlanResponse(
+  GeneratedMealData _parseMealPlanResponse(
     String response,
     int days,
     DateTime startDate,
@@ -248,8 +242,7 @@ ${reason != null ? '## 재생성 이유\n$reason\n' : ''}
         ingredients: ingredients,
       );
     } catch (e) {
-      debugPrint('응답 파싱 오류: $e');
-      return null;
+      throw Exception('응답 파싱 실패: $e\n\n응답 앞부분: ${response.length > 300 ? response.substring(0, 300) : response}');
     }
   }
 
@@ -267,6 +260,8 @@ ${reason != null ? '## 재생성 이유\n$reason\n' : ''}
   /// 끼니 유형 목록 생성
   List<MealType> _getMealTypesForCount(int count) {
     switch (count) {
+      case 1:
+        return [MealType.lunch];
       case 2:
         return [MealType.lunch, MealType.dinner];
       case 3:

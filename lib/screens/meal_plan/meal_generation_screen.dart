@@ -31,8 +31,15 @@ class _MealGenerationScreenState extends State<MealGenerationScreen> {
   @override
   void initState() {
     super.initState();
-    _startGeneration();
     _startTipRotation();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isGenerating) {
+      _startGeneration();
+    }
   }
 
   void _startTipRotation() {
@@ -88,7 +95,7 @@ class _MealGenerationScreenState extends State<MealGenerationScreen> {
     if (result != null) {
       _updateStatus('식단 생성 완료! 🎉');
       await Future.delayed(const Duration(milliseconds: 500));
-      context.go('/meal-plan/${result.id}');
+      context.go('/home');
     } else {
       setState(() => _isGenerating = false);
       _showErrorDialog(mealPlanProvider.error ?? '식단 생성에 실패했습니다');

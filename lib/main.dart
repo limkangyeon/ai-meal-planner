@@ -9,6 +9,7 @@ import 'firebase_options.dart';
 import 'providers/user_provider.dart';
 import 'providers/meal_plan_provider.dart';
 import 'providers/shopping_list_provider.dart';
+import 'providers/theme_provider.dart';
 import 'utils/app_router.dart';
 import 'utils/app_theme.dart';
 
@@ -44,17 +45,20 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MealPlanProvider()),
         ChangeNotifierProvider(create: (_) => ShoppingListProvider()),
       ],
-      child: MaterialApp.router(
-        title: 'AI Meal Planner',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: ThemeMode.system,
-        routerConfig: AppRouter.router,
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, _) => MaterialApp.router(
+          title: 'AI Meal Planner',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeProvider.themeMode,
+          routerConfig: AppRouter.router,
+        ),
       ),
     );
   }

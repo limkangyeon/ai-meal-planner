@@ -3,8 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
+
 import '../../models/meal_plan.dart';
+import '../../models/user_profile.dart';
 import '../../providers/meal_plan_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 import '../../widgets/meal_card.dart';
 import '../../widgets/nutrition_chart.dart';
@@ -21,11 +24,8 @@ class MealPlanDetailScreen extends StatefulWidget {
   State<MealPlanDetailScreen> createState() => _MealPlanDetailScreenState();
 }
 
-class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _MealPlanDetailScreenState extends State<MealPlanDetailScreen> {
   MealPlan? _mealPlan;
-  int _selectedDayIndex = 0;
 
   @override
   void initState() {
@@ -36,178 +36,106 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
   Future<void> _loadMealPlan() async {
     final provider = context.read<MealPlanProvider>();
     final plan = await provider.getMealPlan(widget.planId);
-    
     if (plan != null && mounted) {
-      setState(() {
-        _mealPlan = plan;
-        _tabController = TabController(
-          length: plan.dailyPlans.length,
-          vsync: this,
-        );
-        _tabController.addListener(() {
-          setState(() => _selectedDayIndex = _tabController.index);
-        });
-        
-        // 오늘 날짜 탭으로 이동
-        final today = DateTime.now();
-        final todayIndex = plan.dailyPlans.indexWhere((d) =>
-            d.date.year == today.year &&
-            d.date.month == today.month &&
-            d.date.day == today.day);
-        if (todayIndex >= 0) {
-          _tabController.animateTo(todayIndex);
-        }
-      });
+      setState(() => _mealPlan = plan);
     }
-  }
-
-  @override
-  void dispose() {
-    if (_mealPlan != null) {
-      _tabController.dispose();
-    }
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_mealPlan == null) {
+    final mealPlan = _mealPlan;
+
+    if (mealPlan == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('식단 상세')),
+        appBar: AppBar(
+          title: const Text('식단 상세'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+          ),
+        ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    return Scaffold(
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) {
-          return [
-            // 앱바
-            SliverAppBar(
-              expandedHeight: 200,
-              floating: false,
-              pinned: true,
-              flexibleSpace: FlexibleSpaceBar(
-                title: Text(
-                  '${_mealPlan!.durationDays}일 식단',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                background: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppTheme.primaryGreen,
-                        AppTheme.primaryGreen.withOpacity(0.7),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Spacer(),
-                          Text(
-                            '${_formatDate(_mealPlan!.startDate)} ~ ${_formatDate(_mealPlan!.endDate)}',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              _buildStatChip(
-                                '일 평균',
-                                '${_mealPlan!.averageNutrition.calories}kcal',
-                              ),
-                              const SizedBox(width: 8),
-                              _buildStatChip(
-                                '재료',
-                                '${_mealPlan!.ingredients.length}개',
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+    // 오늘 날짜 인덱스
+    final today = DateTime.now();
+    final todayIndex = mealPlan.dailyPlans.indexWhere((d) =>
+        d.date.year == today.year &&
+        d.date.month == today.month &&
+        d.date.day == today.day);
+    final initialIndex = todayIndex >= 0 ? todayIndex : 0;
+
+    return DefaultTabController(
+      length: mealPlan.dailyPlans.length,
+      initialIndex: initialIndex,
+      child: Scaffold(
+        backgroundColor: Colors.grey.shade50,
+        appBar: AppBar(
+          backgroundColor: AppTheme.primaryGreen,
+          foregroundColor: Colors.white,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => context.canPop() ? context.pop() : context.go('/home'),
+          ),
+          title: Text(
+            '${mealPlan.durationDays}일 식단',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(
+                mealPlan.isShared ? Icons.people : Icons.people_outline,
+                color: Colors.white,
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.share),
-                  onPressed: _shareMealPlan,
-                ),
-                PopupMenuButton<String>(
-                  onSelected: _handleMenuAction,
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'shopping',
-                      child: Row(
-                        children: [
-                          Icon(Icons.shopping_cart),
-                          SizedBox(width: 8),
-                          Text('장보기 리스트'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'regenerate',
-                      child: Row(
-                        children: [
-                          Icon(Icons.refresh),
-                          SizedBox(width: 8),
-                          Text('전체 재생성'),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red),
-                          SizedBox(width: 8),
-                          Text('삭제', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+              tooltip: mealPlan.isShared ? '공유 중' : '커뮤니티 공유',
+              onPressed: _shareMealPlan,
+            ),
+            PopupMenuButton<String>(
+              iconColor: Colors.white,
+              onSelected: _handleMenuAction,
+              itemBuilder: (context) => [
+                const PopupMenuItem(value: 'shopping', child: Row(children: [Icon(Icons.shopping_cart), SizedBox(width: 8), Text('장보기 리스트')])),
+                const PopupMenuItem(value: 'delete', child: Row(children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('삭제', style: TextStyle(color: Colors.red))])),
               ],
             ),
-
-            // 날짜 탭바
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _DateTabBarDelegate(
-                tabController: _tabController,
-                dailyPlans: _mealPlan!.dailyPlans,
-              ),
-            ),
-          ];
-        },
+          ],
+          bottom: TabBar(
+            isScrollable: true,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+            indicatorColor: Colors.white,
+            tabs: mealPlan.dailyPlans.map((plan) {
+              final isToday = plan.date.year == DateTime.now().year &&
+                  plan.date.month == DateTime.now().month &&
+                  plan.date.day == DateTime.now().day;
+              return Tab(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_weekday(plan.date), style: const TextStyle(fontSize: 11)),
+                    Text('${plan.date.day}일', style: TextStyle(fontSize: 14, fontWeight: isToday ? FontWeight.bold : FontWeight.normal)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
         body: TabBarView(
-          controller: _tabController,
-          children: _mealPlan!.dailyPlans.map((dailyPlan) {
+          children: mealPlan.dailyPlans.map((dailyPlan) {
             return _buildDayContent(dailyPlan);
           }).toList(),
         ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton.icon(
-            onPressed: () => context.go('/shopping-list/${widget.planId}'),
-            icon: const Icon(Icons.shopping_cart),
-            label: const Text('장보기 리스트 보기'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+        bottomNavigationBar: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: ElevatedButton.icon(
+              onPressed: () => context.push('/shopping-list/${widget.planId}'),
+              icon: const Icon(Icons.shopping_cart),
+              label: const Text('장보기 리스트 보기'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
             ),
           ),
         ),
@@ -276,10 +204,15 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
     return DateFormat('M월 d일').format(date);
   }
 
+  String _weekday(DateTime date) {
+    const days = ['월', '화', '수', '목', '금', '토', '일'];
+    return days[date.weekday - 1];
+  }
+
   void _handleMenuAction(String action) {
     switch (action) {
       case 'shopping':
-        context.go('/shopping-list/${widget.planId}');
+        context.push('/shopping-list/${widget.planId}');
         break;
       case 'regenerate':
         _confirmRegenerate();
@@ -291,9 +224,52 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
   }
 
   void _shareMealPlan() {
-    // TODO: 공유 기능
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('공유 기능은 준비 중입니다')),
+    final mealPlan = _mealPlan;
+    if (mealPlan == null) return;
+
+    final isShared = mealPlan.isShared;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isShared ? '공유 취소' : '커뮤니티에 공유'),
+        content: Text(isShared
+            ? '이 식단의 공유를 취소하시겠어요?'
+            : '이 식단을 커뮤니티에 공유하면\n다른 사용자들이 볼 수 있어요.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final provider = context.read<MealPlanProvider>();
+              bool success;
+              if (isShared) {
+                success = await provider.unshareMealPlan(mealPlan.id);
+              } else {
+                final userProfile = context.read<UserProvider>().userProfile;
+                success = await provider.shareMealPlan(
+                  mealPlan.id,
+                  authorName: userProfile?.displayName ?? '익명',
+                  dietGoalName: userProfile?.dietGoal?.displayName,
+                );
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text(success
+                      ? (isShared ? '공유가 취소되었습니다' : '커뮤니티에 공유되었습니다!')
+                      : '처리 중 오류가 발생했습니다'),
+                ));
+                if (success) setState(() => _mealPlan = _mealPlan?.copyWith(isShared: !isShared));
+              }
+            },
+            style: isShared ? ElevatedButton.styleFrom(backgroundColor: Colors.red) : null,
+            child: Text(isShared ? '공유 취소' : '공유하기'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -423,7 +399,7 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -494,7 +470,7 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              context.go('/generate-meal?days=${_mealPlan!.durationDays}');
+              context.go('/generate-meal?days=${_mealPlan?.durationDays ?? 7}');
             },
             child: const Text('재생성'),
           ),
@@ -536,13 +512,9 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen>
 
 // 날짜 탭바 델리게이트
 class _DateTabBarDelegate extends SliverPersistentHeaderDelegate {
-  final TabController tabController;
   final List<DailyMealPlan> dailyPlans;
 
-  _DateTabBarDelegate({
-    required this.tabController,
-    required this.dailyPlans,
-  });
+  _DateTabBarDelegate({required this.dailyPlans});
 
   @override
   Widget build(
@@ -553,7 +525,6 @@ class _DateTabBarDelegate extends SliverPersistentHeaderDelegate {
     return Container(
       color: Theme.of(context).scaffoldBackgroundColor,
       child: TabBar(
-        controller: tabController,
         isScrollable: true,
         labelColor: AppTheme.primaryGreen,
         unselectedLabelColor: Colors.grey,

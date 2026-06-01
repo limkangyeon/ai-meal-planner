@@ -13,6 +13,8 @@ import '../screens/shopping/shopping_list_screen.dart';
 import '../screens/community/community_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
+import '../screens/profile/history_screen.dart';
+import '../screens/profile/policy_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 
@@ -134,6 +136,30 @@ class AppRouter {
         path: '/settings',
         name: 'settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+
+      // 식단 히스토리 화면
+      GoRoute(
+        path: '/history',
+        name: 'history',
+        builder: (context, state) {
+          final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
+          return HistoryScreen(initialTab: tab);
+        },
+      ),
+
+      // 이용약관
+      GoRoute(
+        path: '/terms',
+        name: 'terms',
+        builder: (context, state) => const PolicyScreen(type: PolicyType.terms),
+      ),
+
+      // 개인정보 처리방침
+      GoRoute(
+        path: '/privacy',
+        name: 'privacy',
+        builder: (context, state) => const PolicyScreen(type: PolicyType.privacy),
       ),
     ],
     

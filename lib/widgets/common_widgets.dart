@@ -20,7 +20,7 @@ class LoadingOverlay extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -255,7 +255,7 @@ class EmptyStateWidget extends StatelessWidget {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).colorScheme.surface,
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -317,7 +317,7 @@ class SkeletonLoader extends StatelessWidget {
       ),
     ).animate(onPlay: (c) => c.repeat()).shimmer(
           duration: 1000.ms,
-          color: Colors.grey.shade100,
+          color: Theme.of(context).colorScheme.surface,
         );
   }
 }
