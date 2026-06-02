@@ -1,5 +1,5 @@
 name: ai_meal_planner
-description: AI 기반 맞춤형 식단 추천 어플리케이션
+description: EatPlan - AI 기반 맞춤형 식단 추천 어플리케이션
 
 publish_to: 'none'
 
@@ -88,6 +88,7 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+    - assets/icon/
     - .env
 
   fonts:

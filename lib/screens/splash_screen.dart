@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../providers/user_provider.dart';
-import '../utils/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +22,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateToNext() async {
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(milliseconds: 2800));
     if (!mounted) return;
 
     final userProvider = context.read<UserProvider>();
@@ -31,14 +30,12 @@ class _SplashScreenState extends State<SplashScreen> {
     final rememberMe = prefs.getBool('remember_me') ?? true;
 
     if (userProvider.isLoggedIn) {
-      // 로그인 유지 OFF인 경우 자동 로그아웃
       if (!rememberMe) {
         await userProvider.signOut();
         if (!mounted) return;
         context.go('/login');
         return;
       }
-
       if (userProvider.isOnboarded) {
         context.go('/home');
       } else {
@@ -56,75 +53,95 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primaryGreen,
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // 로고 아이콘
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.restaurant_menu,
-                size: 60,
-                color: AppTheme.primaryGreen,
-              ),
+            // 앱 아이콘
+            Image.asset(
+              'assets/icon/icon.png',
+              width: 110,
+              height: 110,
             )
                 .animate()
                 .fadeIn(duration: 600.ms)
-                .scale(begin: const Offset(0.8, 0.8)),
+                .scale(
+                  begin: const Offset(0.7, 0.7),
+                  end: const Offset(1.0, 1.0),
+                  curve: Curves.easeOutBack,
+                ),
 
             const SizedBox(height: 24),
 
-            // 앱 이름
-            Text(
-              'AI Meal Planner',
-              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            // 앱 이름 "EatPlan"
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'Eat',
+                    style: GoogleFonts.poppins(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF4CAF50),
+                      letterSpacing: -0.5,
+                    ),
                   ),
+                  TextSpan(
+                    text: 'Plan',
+                    style: GoogleFonts.poppins(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w300,
+                      color: const Color(0xFF2E7D32),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
             )
                 .animate()
                 .fadeIn(delay: 300.ms, duration: 600.ms)
-                .slideY(begin: 0.3),
+                .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
 
             const SizedBox(height: 8),
 
             // 슬로건
             Text(
-              '당신만을 위한 맞춤 식단',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                  ),
-            )
-                .animate()
-                .fadeIn(delay: 500.ms, duration: 600.ms),
-
-            const SizedBox(height: 48),
-
-            // 로딩 인디케이터
-            const SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              'AI 맞춤 식단 플래너',
+              style: GoogleFonts.notoSansKr(
+                fontSize: 13,
+                color: Colors.grey.shade400,
+                letterSpacing: 1.5,
+                fontWeight: FontWeight.w400,
               ),
             )
                 .animate()
-                .fadeIn(delay: 700.ms),
+                .fadeIn(delay: 600.ms, duration: 600.ms),
+
+            const SizedBox(height: 60),
+
+            // 로딩 점 애니메이션
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(3, (i) {
+                return Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF4CAF50),
+                    shape: BoxShape.circle,
+                  ),
+                )
+                    .animate(onPlay: (c) => c.repeat())
+                    .fadeIn(
+                      delay: Duration(milliseconds: 800 + i * 150),
+                      duration: 400.ms,
+                    )
+                    .then()
+                    .fadeOut(duration: 400.ms);
+              }),
+            ),
           ],
         ),
       ),
