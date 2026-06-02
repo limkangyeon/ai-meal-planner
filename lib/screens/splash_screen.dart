@@ -59,10 +59,12 @@ class _SplashScreenState extends State<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // 앱 아이콘
-            Image.asset(
-              'assets/icon/icon.png',
-              width: 110,
-              height: 110,
+            ClipOval(
+              child: Image.asset(
+                'assets/icon/icon.png',
+                width: 110,
+                height: 110,
+              ),
             )
                 .animate()
                 .fadeIn(duration: 600.ms)
