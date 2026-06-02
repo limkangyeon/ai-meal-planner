@@ -60,10 +60,13 @@ class _SplashScreenState extends State<SplashScreen> {
           children: [
             // 앱 아이콘
             ClipOval(
-              child: Image.asset(
-                'assets/icon/icon.png',
-                width: 110,
-                height: 110,
+              child: Transform.scale(
+                scale: 1.08,
+                child: Image.asset(
+                  'assets/icon/icon.png',
+                  width: 110,
+                  height: 110,
+                ),
               ),
             )
                 .animate()

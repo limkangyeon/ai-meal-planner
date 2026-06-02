@@ -118,10 +118,13 @@ class _LoginScreenState extends State<LoginScreen> {
               // 앱 로고
               Center(
                 child: ClipOval(
-                  child: Image.asset(
-                    'assets/icon/icon.png',
-                    width: 88,
-                    height: 88,
+                  child: Transform.scale(
+                    scale: 1.08,
+                    child: Image.asset(
+                      'assets/icon/icon.png',
+                      width: 88,
+                      height: 88,
+                    ),
                   ),
                 ),
               ),
