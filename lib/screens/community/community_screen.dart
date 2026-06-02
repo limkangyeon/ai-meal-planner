@@ -38,10 +38,7 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   List<MealPlan> _filtered(List<MealPlan> plans) {
     if (_selectedCategory == '전체') return plans;
-    return plans.where((p) {
-      final goal = (p as dynamic).dietGoalName ?? '';
-      return goal == _selectedCategory;
-    }).toList();
+    return plans.where((p) => p.dietGoalName == _selectedCategory).toList();
   }
 
   @override
@@ -161,8 +158,8 @@ class _CommunityScreenState extends State<CommunityScreen>
 
   Widget _buildCard(MealPlan plan, MealPlanProvider provider) {
     final isLiked = _likedPlanIds.contains(plan.id);
-    final dietGoal = plan.toFirestore()['dietGoalName'] as String?;
-    final authorName = plan.toFirestore()['authorName'] as String? ?? '익명';
+    final dietGoal = plan.dietGoalName;
+    final authorName = plan.authorName ?? '익명';
     final avgCalories = plan.dailyPlans.isNotEmpty
         ? plan.averageNutrition.calories
         : 0;

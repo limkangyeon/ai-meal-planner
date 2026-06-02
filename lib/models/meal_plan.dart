@@ -243,6 +243,9 @@ class MealPlan {
   final int likes;
   final DateTime createdAt;
   final DateTime updatedAt;
+  // 커뮤니티 공유 시 추가 필드
+  final String? authorName;
+  final String? dietGoalName;
 
   MealPlan({
     required this.id,
@@ -255,6 +258,8 @@ class MealPlan {
     this.likes = 0,
     DateTime? createdAt,
     DateTime? updatedAt,
+    this.authorName,
+    this.dietGoalName,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
 
@@ -310,6 +315,8 @@ class MealPlan {
       likes: data['likes'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+      authorName: data['authorName'] as String?,
+      dietGoalName: data['dietGoalName'] as String?,
     );
   }
 
@@ -324,6 +331,8 @@ class MealPlan {
       'likes': likes,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(DateTime.now()),
+      if (authorName != null) 'authorName': authorName,
+      if (dietGoalName != null) 'dietGoalName': dietGoalName,
     };
   }
 
@@ -338,6 +347,8 @@ class MealPlan {
     int? likes,
     DateTime? createdAt,
     DateTime? updatedAt,
+    String? authorName,
+    String? dietGoalName,
   }) {
     return MealPlan(
       id: id ?? this.id,
@@ -350,6 +361,8 @@ class MealPlan {
       likes: likes ?? this.likes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      authorName: authorName ?? this.authorName,
+      dietGoalName: dietGoalName ?? this.dietGoalName,
     );
   }
 }
