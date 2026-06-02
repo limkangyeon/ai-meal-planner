@@ -379,34 +379,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _confirmDeleteAccount(BuildContext context) {
+    final userProvider = context.read<UserProvider>();
+    final isEmailUser = userProvider.firebaseUser?.providerData
+            .any((p) => p.providerId == 'password') ??
+        false;
+    final passwordController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('회원 탈퇴'),
-        content: const Text(
-          '정말 탈퇴하시겠습니까?\n\n'
-          '탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: 회원 탈퇴 기능 구현
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('회원 탈퇴 기능은 준비 중입니다')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          bool isDeleting = false;
+
+          return AlertDialog(
+            title: const Text('회원 탈퇴'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '탈퇴 시 모든 데이터가 삭제되며\n복구할 수 없습니다.',
+                  style: TextStyle(height: 1.5),
+                ),
+                if (isEmailUser) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: '비밀번호 확인',
+                      hintText: '현재 비밀번호를 입력해주세요',
+                      prefixIcon: Icon(Icons.lock_outline),
+                    ),
+                  ),
+                ],
+              ],
             ),
-            child: const Text('탈퇴'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: isDeleting ? null : () => Navigator.pop(ctx),
+                child: const Text('취소'),
+              ),
+              ElevatedButton(
+                onPressed: isDeleting
+                    ? null
+                    : () async {
+                        if (isEmailUser && passwordController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('비밀번호를 입력해주세요')),
+                          );
+                          return;
+                        }
+
+                        setState(() => isDeleting = true);
+                        final success = await userProvider.deleteAccount(
+                          password: isEmailUser ? passwordController.text : null,
+                        );
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+
+                        if (success) {
+                          context.go('/onboarding');
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(userProvider.error ?? '탈퇴 처리 중 오류가 발생했습니다'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: isDeleting
+                    ? const SizedBox(
+                        width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('탈퇴하기'),
+              ),
+            ],
+          );
+        },
       ),
     );
+
+    passwordController.dispose();
   }
 }

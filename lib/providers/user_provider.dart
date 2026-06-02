@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -86,6 +87,99 @@ class UserProvider extends ChangeNotifier {
           .set(_userProfile!.toFirestore(), SetOptions(merge: true));
     } catch (e) {
       _error = '프로필 저장 실패: $e';
+    }
+  }
+
+  /// 회원 탈퇴
+  Future<bool> deleteAccount({String? password}) async {
+    if (_firebaseUser == null) return false;
+    _setLoading(true);
+    _error = null;
+
+    try {
+      // 1. 재인증 (Firebase 보안 요구사항)
+      final user = _firebaseUser!;
+      final providers = user.providerData.map((p) => p.providerId).toList();
+
+      if (providers.contains('password') && password != null) {
+        // 이메일/비밀번호 재인증
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: password,
+        );
+        await user.reauthenticateWithCredential(credential);
+      } else if (providers.contains('google.com')) {
+        // Google 재인증
+        final googleSignIn = GoogleSignIn();
+        final googleUser = await googleSignIn.signIn();
+        if (googleUser == null) {
+          _error = '재인증이 필요합니다';
+          return false;
+        }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
+
+      final userId = user.uid;
+
+      // 2. Firestore 내 식단 삭제
+      final plans = await _firestore
+          .collection('mealPlans')
+          .where('userId', isEqualTo: userId)
+          .get();
+      for (final doc in plans.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. 공유 식단 삭제
+      final shared = await _firestore
+          .collection('sharedMealPlans')
+          .where('userId', isEqualTo: userId)
+          .get();
+      for (final doc in shared.docs) {
+        await doc.reference.delete();
+      }
+
+      // 4. 프로필 문서 삭제
+      await _firestore.collection('users').doc(userId).delete();
+
+      // 5. Storage 프로필 사진 삭제
+      try {
+        await FirebaseStorage.instance
+            .ref('profile_photos/$userId.jpg')
+            .delete();
+      } catch (_) {
+        // 사진 없으면 무시
+      }
+
+      // 6. Firebase Auth 계정 삭제
+      await user.delete();
+
+      // 7. 로컬 설정 초기화
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+
+      _firebaseUser = null;
+      _userProfile = null;
+      _isOnboarded = false;
+      notifyListeners();
+      return true;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        _error = '비밀번호가 올바르지 않습니다';
+      } else {
+        _error = _getErrorMessage(e.code);
+      }
+      return false;
+    } catch (e) {
+      _error = '탈퇴 처리 중 오류가 발생했습니다';
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 
