@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -38,6 +39,48 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Widget _buildGoogleButton() {
+    final isSupported = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+
+    return Consumer<UserProvider>(
+      builder: (context, provider, _) => Tooltip(
+        message: isSupported ? '' : 'Android / iOS에서만 사용 가능합니다',
+        child: SizedBox(
+          width: double.infinity,
+          height: 56,
+          child: OutlinedButton.icon(
+            onPressed: (provider.isLoading || !isSupported) ? null : () async {
+              final success = await provider.signInWithGoogle();
+              if (success && mounted) {
+                if (provider.userProfile?.onboardingCompleted ?? false) {
+                  context.go('/home');
+                } else {
+                  context.go('/profile-setup');
+                }
+              }
+            },
+            icon: _GoogleIcon(),
+            label: Text(
+              isSupported ? 'Google로 로그인' : 'Google로 로그인 (Android/iOS 전용)',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: isSupported ? null : Colors.grey,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: isSupported ? Colors.grey.shade300 : Colors.grey.shade200,
+              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _login() async {
@@ -274,34 +317,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 16),
 
-              // Google 로그인 버튼
-              Consumer<UserProvider>(
-                builder: (context, provider, _) => SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: OutlinedButton.icon(
-                    onPressed: provider.isLoading ? null : () async {
-                      final success = await provider.signInWithGoogle();
-                      if (success && mounted) {
-                        if (provider.userProfile?.onboardingCompleted ?? false) {
-                          context.go('/home');
-                        } else {
-                          context.go('/profile-setup');
-                        }
-                      }
-                    },
-                    icon: _GoogleIcon(),
-                    label: const Text(
-                      'Google로 로그인',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ),
+              // Google 로그인 버튼 (Android/iOS만 지원)
+              _buildGoogleButton(),
 
               const SizedBox(height: 24),
 
