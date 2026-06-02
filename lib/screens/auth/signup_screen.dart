@@ -283,7 +283,52 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // 구분선
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('또는', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey.shade300)),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // Google 로그인 버튼
+              Consumer<UserProvider>(
+                builder: (context, provider, _) => SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: OutlinedButton.icon(
+                    onPressed: provider.isLoading ? null : () async {
+                      final success = await provider.signInWithGoogle();
+                      if (success && mounted) {
+                        if (provider.userProfile?.onboardingCompleted ?? false) {
+                          context.go('/home');
+                        } else {
+                          context.go('/profile-setup');
+                        }
+                      }
+                    },
+                    icon: _GoogleIcon(),
+                    label: const Text(
+                      'Google로 계속하기',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               // 로그인 링크
               Row(
@@ -307,4 +352,44 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
+}
+
+// login_screen.dart와 동일한 Google 아이콘 위젯
+class _GoogleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleLogoPainter()),
+    );
+  }
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = size.width / 2;
+    final colors = [
+      const Color(0xFF4285F4),
+      const Color(0xFFEA4335),
+      const Color(0xFFFBBC05),
+      const Color(0xFF34A853),
+    ];
+    for (int i = 0; i < 4; i++) {
+      final paint = Paint()..color = colors[i];
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: r),
+        (i * 90.0 - 45) * 3.14159 / 180,
+        90 * 3.14159 / 180,
+        true,
+        paint,
+      );
+    }
+    canvas.drawCircle(center, r * 0.55, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

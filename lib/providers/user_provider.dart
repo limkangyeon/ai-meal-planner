@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/user_profile.dart';
@@ -85,6 +86,46 @@ class UserProvider extends ChangeNotifier {
           .set(_userProfile!.toFirestore(), SetOptions(merge: true));
     } catch (e) {
       _error = '프로필 저장 실패: $e';
+    }
+  }
+
+  /// Google 로그인
+  Future<bool> signInWithGoogle() async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final googleSignIn = GoogleSignIn();
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        // 사용자가 취소
+        _setLoading(false);
+        return false;
+      }
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      _firebaseUser = userCredential.user;
+      await _loadUserProfile();
+
+      // 로그인 유지 ON으로 저장
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('remember_me', true);
+
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
+      return false;
+    } catch (e) {
+      _error = 'Google 로그인 중 오류가 발생했습니다';
+      return false;
+    } finally {
+      _setLoading(false);
     }
   }
 

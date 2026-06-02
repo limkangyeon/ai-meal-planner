@@ -47,6 +47,9 @@ dependencies:
   # Image
   image_picker: ^1.1.2
 
+  # Social Login
+  google_sign_in: ^6.2.2
+
   # Utils
   intl: ^0.18.1
   url_launcher: ^6.2.2
