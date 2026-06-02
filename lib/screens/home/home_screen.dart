@@ -27,7 +27,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final mealPlanProvider = context.read<MealPlanProvider>();
 
     if (userProvider.userId.isNotEmpty) {
-      await mealPlanProvider.loadMealPlans(userProvider.userId);
+      await Future.wait([
+        mealPlanProvider.loadMealPlans(userProvider.userId),
+        mealPlanProvider.loadSharedMealPlans(),
+        mealPlanProvider.loadLikedPlanIds(userProvider.userId),
+      ]);
     }
   }
 
@@ -400,96 +404,144 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPopularMealsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              '🔥 인기 식단',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () => context.go('/community'),
-              child: const Text('더보기'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+    return Consumer<MealPlanProvider>(
+      builder: (context, provider, _) {
+        final popular = [...provider.sharedPlans]
+          ..sort((a, b) => b.likes.compareTo(a.likes));
+        final top = popular.take(5).toList();
 
-        // 플레이스홀더 카드들
-        SizedBox(
-          height: 160,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: 3,
-            itemBuilder: (context, index) {
-              return Container(
-                width: 200,
-                margin: EdgeInsets.only(right: index < 2 ? 12 : 0),
-                padding: const EdgeInsets.all(16),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '🔥 인기 식단',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () => context.go('/community'),
+                  child: const Text('더보기'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            if (top.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '다이어트',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                    Icon(Icons.people_outline, size: 40, color: Colors.grey.shade400),
+                    const SizedBox(height: 8),
+                    Text(
+                      '아직 공유된 식단이 없어요',
+                      style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
                     ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      '일주일 건강식단',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.favorite,
-                          size: 16,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${50 + index * 23}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 4),
+                    Text(
+                      '첫 번째로 식단을 공유해보세요!',
+                      style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-        ),
-      ],
+              )
+            else
+              SizedBox(
+                height: 160,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: top.length,
+                  itemBuilder: (context, index) {
+                    final plan = top[index];
+                    final dietGoal = plan.dietGoalName;
+                    final author = plan.authorName ?? '익명';
+                    return GestureDetector(
+                      onTap: () => context.push('/meal-plan/${plan.id}'),
+                      child: Container(
+                        width: 200,
+                        margin: EdgeInsets.only(right: index < top.length - 1 ? 12 : 0),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                if (dietGoal != null)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primaryGreen.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      dietGoal,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: AppTheme.primaryGreen,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  const SizedBox.shrink(),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.favorite, size: 13, color: Colors.red),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${plan.likes}',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '${plan.durationDays}일 식단',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              author,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                            const Spacer(),
+                            Text(
+                              '${plan.startDate.month}/${plan.startDate.day} ~ ${plan.endDate.month}/${plan.endDate.day}',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
