@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
@@ -13,10 +14,24 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const _rememberMeKey = 'remember_me';
+
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _rememberMe = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberMe();
+  }
+
+  Future<void> _loadRememberMe() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() => _rememberMe = prefs.getBool(_rememberMeKey) ?? true);
+  }
 
   @override
   void dispose() {
@@ -27,6 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_rememberMeKey, _rememberMe);
 
     final userProvider = context.read<UserProvider>();
     final success = await userProvider.signInWithEmail(
@@ -153,18 +171,34 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     const SizedBox(height: 8),
 
-                    // 비밀번호 찾기
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () {
-                          // TODO: 비밀번호 찾기
-                        },
-                        child: const Text('비밀번호를 잊으셨나요?'),
-                      ),
+                    // 로그인 유지 + 비밀번호 찾기
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _rememberMe,
+                              onChanged: (v) => setState(() => _rememberMe = v ?? true),
+                              activeColor: AppTheme.primaryGreen,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            GestureDetector(
+                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              child: const Text('로그인 유지', style: TextStyle(fontSize: 14)),
+                            ),
+                          ],
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            // TODO: 비밀번호 찾기
+                          },
+                          child: const Text('비밀번호 찾기'),
+                        ),
+                      ],
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
 
                     // 에러 메시지
                     Consumer<UserProvider>(

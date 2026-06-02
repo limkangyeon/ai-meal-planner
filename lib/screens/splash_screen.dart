@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../providers/user_provider.dart';
 import '../utils/app_theme.dart';
 
@@ -21,22 +23,28 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _navigateToNext() async {
-    // 최소 스플래시 표시 시간
     await Future.delayed(const Duration(seconds: 2));
-
     if (!mounted) return;
 
     final userProvider = context.read<UserProvider>();
+    final prefs = await SharedPreferences.getInstance();
+    final rememberMe = prefs.getBool('remember_me') ?? true;
 
-    // 네비게이션 결정
     if (userProvider.isLoggedIn) {
+      // 로그인 유지 OFF인 경우 자동 로그아웃
+      if (!rememberMe) {
+        await userProvider.signOut();
+        if (!mounted) return;
+        context.go('/login');
+        return;
+      }
+
       if (userProvider.isOnboarded) {
         context.go('/home');
       } else {
         context.go('/profile-setup');
       }
     } else {
-      // 온보딩 화면으로 (첫 사용자)
       if (userProvider.isOnboarded) {
         context.go('/login');
       } else {
