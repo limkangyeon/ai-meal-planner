@@ -115,20 +115,12 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               const SizedBox(height: 48),
 
-              // 로고
+              // 앱 로고
               Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.restaurant_menu,
-                    size: 40,
-                    color: AppTheme.primaryGreen,
-                  ),
+                child: Image.asset(
+                  'assets/icon/icon.png',
+                  width: 88,
+                  height: 88,
                 ),
               ),
 
