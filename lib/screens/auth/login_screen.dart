@@ -41,6 +41,39 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _showPasswordReset() async {
+    final emailController = TextEditingController(
+      text: _emailController.text.trim(),
+    );
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => _PasswordResetDialog(
+        emailController: emailController,
+        onSend: (email) async {
+          final provider = context.read<UserProvider>();
+          final success = await provider.sendPasswordReset(email);
+          if (!ctx.mounted) return;
+          Navigator.pop(ctx);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                success
+                    ? '비밀번호 재설정 링크를 $email 로 보냈습니다'
+                    : (provider.error ?? '발송에 실패했습니다'),
+              ),
+              backgroundColor: success ? Colors.green : Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+          if (success) provider.clearError();
+        },
+      ),
+    );
+
+    emailController.dispose();
+  }
+
   Widget _buildGoogleButton() {
     final isSupported = defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
@@ -230,9 +263,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         TextButton(
-                          onPressed: () {
-                            // TODO: 비밀번호 찾기
-                          },
+                          onPressed: _showPasswordReset,
                           child: const Text('비밀번호 찾기'),
                         ),
                       ],
@@ -339,6 +370,79 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PasswordResetDialog extends StatefulWidget {
+  final TextEditingController emailController;
+  final Future<void> Function(String email) onSend;
+
+  const _PasswordResetDialog({
+    required this.emailController,
+    required this.onSend,
+  });
+
+  @override
+  State<_PasswordResetDialog> createState() => _PasswordResetDialogState();
+}
+
+class _PasswordResetDialogState extends State<_PasswordResetDialog> {
+  bool _isSending = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('비밀번호 찾기'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '가입한 이메일 주소를 입력하면\n비밀번호 재설정 링크를 보내드립니다.',
+            style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: widget.emailController,
+            keyboardType: TextInputType.emailAddress,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: '이메일',
+              hintText: 'example@email.com',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSending ? null : () => Navigator.pop(context),
+          child: const Text('취소'),
+        ),
+        ElevatedButton(
+          onPressed: _isSending
+              ? null
+              : () async {
+                  final email = widget.emailController.text.trim();
+                  if (email.isEmpty || !email.contains('@')) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('올바른 이메일을 입력해주세요')),
+                    );
+                    return;
+                  }
+                  setState(() => _isSending = true);
+                  await widget.onSend(email);
+                  if (mounted) setState(() => _isSending = false);
+                },
+          child: _isSending
+              ? const SizedBox(
+                  width: 18, height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+              : const Text('링크 발송'),
+        ),
+      ],
     );
   }
 }

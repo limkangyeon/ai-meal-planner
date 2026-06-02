@@ -89,6 +89,22 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  /// 비밀번호 재설정 이메일 발송
+  Future<bool> sendPasswordReset(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return true;
+    } on FirebaseAuthException catch (e) {
+      _error = _getErrorMessage(e.code);
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = '이메일 발송 중 오류가 발생했습니다';
+      notifyListeners();
+      return false;
+    }
+  }
+
   /// Google 로그인
   Future<bool> signInWithGoogle() async {
     _setLoading(true);
@@ -303,6 +319,8 @@ class UserProvider extends ChangeNotifier {
       case 'user-not-found':
       case 'wrong-password':
         return '이메일 또는 비밀번호가 올바르지 않습니다';
+      case 'invalid-email':
+        return '유효하지 않은 이메일 형식입니다';
       case 'user-disabled':
         return '비활성화된 계정입니다. 고객센터에 문의해주세요';
       case 'too-many-requests':
