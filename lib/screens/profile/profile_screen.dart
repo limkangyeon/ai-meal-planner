@@ -130,9 +130,9 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
               
-              // 수정 버튼
+              // 연필 아이콘 → 이름/프로필 편집
               IconButton(
-                onPressed: () => _editProfile(context),
+                onPressed: () => context.push('/edit-profile'),
                 icon: const Icon(Icons.edit),
                 color: AppTheme.primaryGreen,
               ),
@@ -147,7 +147,9 @@ class ProfileScreen extends StatelessWidget {
     return Consumer<MealPlanProvider>(
       builder: (context, provider, _) {
         final totalPlans = provider.mealPlans.length;
-        
+        final likedCount = provider.likedPlanIds.length;
+        final sharedCount = provider.mealPlans.where((p) => p.isShared).length;
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Container(
@@ -167,8 +169,8 @@ class ProfileScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem('생성한 식단', '$totalPlans', Icons.restaurant_menu),
-                _buildStatItem('좋아요한 식단', '12', Icons.favorite),
-                _buildStatItem('공유한 식단', '3', Icons.share),
+                _buildStatItem('좋아요한 식단', '$likedCount', Icons.favorite),
+                _buildStatItem('공유한 식단', '$sharedCount', Icons.share),
               ],
             ),
           ),
@@ -221,7 +223,14 @@ class ProfileScreen extends StatelessWidget {
             _buildMenuItem(
               context,
               icon: Icons.person_outline,
-              title: '프로필 수정',
+              title: '프로필 편집 (이름)',
+              onTap: () => context.push('/edit-profile'),
+            ),
+            _buildDivider(),
+            _buildMenuItem(
+              context,
+              icon: Icons.tune,
+              title: '식단 목표/설정 변경',
               onTap: () => _editProfile(context),
             ),
             _buildDivider(),

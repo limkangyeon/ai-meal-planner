@@ -241,17 +241,20 @@ class UserProvider extends ChangeNotifier {
       case 'invalid-email':
         return '유효하지 않은 이메일 형식입니다';
       case 'weak-password':
-        return '비밀번호가 너무 약합니다';
+        return '비밀번호는 6자 이상이어야 합니다';
+      // Firebase Auth v5에서 통합된 코드 (이메일 없거나 비밀번호 틀림)
+      case 'invalid-credential':
       case 'user-not-found':
-        return '등록되지 않은 이메일입니다';
       case 'wrong-password':
-        return '잘못된 비밀번호입니다';
+        return '이메일 또는 비밀번호가 올바르지 않습니다';
       case 'user-disabled':
-        return '비활성화된 계정입니다';
+        return '비활성화된 계정입니다. 고객센터에 문의해주세요';
       case 'too-many-requests':
-        return '너무 많은 요청이 있었습니다. 잠시 후 다시 시도해주세요';
+        return '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요';
+      case 'network-request-failed':
+        return '네트워크 연결을 확인해주세요';
       default:
-        return '오류가 발생했습니다. 다시 시도해주세요';
+        return '이메일 또는 비밀번호가 올바르지 않습니다';
     }
   }
 }

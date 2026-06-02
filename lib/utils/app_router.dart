@@ -15,6 +15,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/profile/settings_screen.dart';
 import '../screens/profile/history_screen.dart';
 import '../screens/profile/policy_screen.dart';
+import '../screens/profile/edit_profile_screen.dart';
 import '../screens/auth/login_screen.dart';
 import '../screens/auth/signup_screen.dart';
 
@@ -146,6 +147,13 @@ class AppRouter {
           final tab = int.tryParse(state.uri.queryParameters['tab'] ?? '0') ?? 0;
           return HistoryScreen(initialTab: tab);
         },
+      ),
+
+      // 프로필 편집 (이름)
+      GoRoute(
+        path: '/edit-profile',
+        name: 'editProfile',
+        builder: (context, state) => const EditProfileScreen(),
       ),
 
       // 이용약관
