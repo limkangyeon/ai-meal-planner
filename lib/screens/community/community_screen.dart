@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/meal_plan.dart';
 import '../../providers/meal_plan_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 
 class CommunityScreen extends StatefulWidget {
@@ -17,7 +18,6 @@ class _CommunityScreenState extends State<CommunityScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _selectedCategory = '전체';
-  final Set<String> _likedPlanIds = {};
 
   final List<String> _categories = ['전체', '다이어트', '근육증가', '건강관리', '체중증가', '기타'];
 
@@ -26,7 +26,10 @@ class _CommunityScreenState extends State<CommunityScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MealPlanProvider>().loadSharedMealPlans();
+      final provider = context.read<MealPlanProvider>();
+      final userId = context.read<UserProvider>().userId;
+      provider.loadSharedMealPlans();
+      if (userId.isNotEmpty) provider.loadLikedPlanIds(userId);
     });
   }
 
@@ -157,7 +160,7 @@ class _CommunityScreenState extends State<CommunityScreen>
   }
 
   Widget _buildCard(MealPlan plan, MealPlanProvider provider) {
-    final isLiked = _likedPlanIds.contains(plan.id);
+    final isLiked = provider.isLiked(plan.id);
     final dietGoal = plan.dietGoalName;
     final authorName = plan.authorName ?? '익명';
     final avgCalories = plan.dailyPlans.isNotEmpty
@@ -227,12 +230,18 @@ class _CommunityScreenState extends State<CommunityScreen>
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: isLiked ? null : () async {
-                        setState(() => _likedPlanIds.add(plan.id));
-                        await provider.likeSharedPlan(plan.id);
+                      onPressed: () {
+                        final userId = context.read<UserProvider>().userId;
+                        if (userId.isNotEmpty) {
+                          provider.toggleLike(plan.id, userId);
+                        }
                       },
-                      icon: Icon(isLiked ? Icons.favorite : Icons.favorite_border, size: 18),
-                      label: Text(isLiked ? '좋아요 완료' : '좋아요'),
+                      icon: Icon(
+                        isLiked ? Icons.favorite : Icons.favorite_border,
+                        size: 18,
+                        color: Colors.red,
+                      ),
+                      label: Text(isLiked ? '좋아요 취소' : '좋아요'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.red,
                         side: const BorderSide(color: Colors.red),

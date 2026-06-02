@@ -12,6 +12,8 @@ class MealPlanProvider extends ChangeNotifier {
   List<MealPlan> _mealPlans = [];
   MealPlan? _currentPlan;
   List<MealPlan> _sharedPlans = [];
+  List<MealPlan> _likedPlans = [];
+  Set<String> _likedPlanIds = {};
   bool _isLoading = false;
   bool _isGenerating = false;
   String? _error;
@@ -21,6 +23,9 @@ class MealPlanProvider extends ChangeNotifier {
   List<MealPlan> get mealPlans => _mealPlans;
   MealPlan? get currentPlan => _currentPlan;
   List<MealPlan> get sharedPlans => _sharedPlans;
+  List<MealPlan> get likedPlans => _likedPlans;
+  Set<String> get likedPlanIds => _likedPlanIds;
+  bool isLiked(String planId) => _likedPlanIds.contains(planId);
   bool get isLoading => _isLoading;
   bool get isGenerating => _isGenerating;
   String? get error => _error;
@@ -320,18 +325,93 @@ class MealPlanProvider extends ChangeNotifier {
     }
   }
 
-  /// 공유 식단 좋아요
-  Future<void> likeSharedPlan(String planId) async {
+  /// 사용자의 좋아요 ID 목록 로드
+  Future<void> loadLikedPlanIds(String userId) async {
     try {
-      await _firestore.collection('sharedMealPlans').doc(planId).update({
-        'likes': FieldValue.increment(1),
-      });
-      _sharedPlans = _sharedPlans
-          .map((p) => p.id == planId ? p.copyWith(likes: p.likes + 1) : p)
-          .toList();
+      final doc = await _firestore.collection('users').doc(userId).get();
+      final data = doc.data();
+      if (data != null && data['likedPlanIds'] != null) {
+        _likedPlanIds = Set<String>.from(data['likedPlanIds'] as List);
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('좋아요 목록 로드 실패: $e');
+    }
+  }
+
+  /// 사용자가 좋아요한 공유 식단 목록 로드
+  Future<void> loadLikedPlans(String userId) async {
+    if (_likedPlanIds.isEmpty) {
+      await loadLikedPlanIds(userId);
+    }
+    if (_likedPlanIds.isEmpty) {
+      _likedPlans = [];
+      notifyListeners();
+      return;
+    }
+    try {
+      // Firestore in 쿼리는 최대 30개
+      final ids = _likedPlanIds.take(30).toList();
+      final snapshot = await _firestore
+          .collection('sharedMealPlans')
+          .where(FieldPath.documentId, whereIn: ids)
+          .get();
+      _likedPlans = snapshot.docs.map((d) => MealPlan.fromFirestore(d)).toList();
       notifyListeners();
     } catch (e) {
-      debugPrint('좋아요 실패: $e');
+      debugPrint('좋아요 식단 로드 실패: $e');
+    }
+  }
+
+  /// 공유 식단 좋아요 토글
+  Future<void> toggleLike(String planId, String userId) async {
+    final alreadyLiked = _likedPlanIds.contains(planId);
+    try {
+      if (alreadyLiked) {
+        // 좋아요 취소
+        _likedPlanIds.remove(planId);
+        _likedPlans.removeWhere((p) => p.id == planId);
+        await _firestore.collection('sharedMealPlans').doc(planId).update({
+          'likes': FieldValue.increment(-1),
+        });
+        await _firestore.collection('users').doc(userId).update({
+          'likedPlanIds': FieldValue.arrayRemove([planId]),
+        });
+        _sharedPlans = _sharedPlans
+            .map((p) => p.id == planId ? p.copyWith(likes: (p.likes - 1).clamp(0, 99999)) : p)
+            .toList();
+      } else {
+        // 좋아요 추가
+        _likedPlanIds.add(planId);
+        await _firestore.collection('sharedMealPlans').doc(planId).update({
+          'likes': FieldValue.increment(1),
+        });
+        await _firestore.collection('users').doc(userId).set({
+          'likedPlanIds': FieldValue.arrayUnion([planId]),
+        }, SetOptions(merge: true));
+        _sharedPlans = _sharedPlans
+            .map((p) => p.id == planId ? p.copyWith(likes: p.likes + 1) : p)
+            .toList();
+        // 좋아요한 식단 목록에 추가
+        final liked = _sharedPlans.firstWhere(
+          (p) => p.id == planId,
+          orElse: () => _likedPlans.firstWhere((p) => p.id == planId,
+              orElse: () => _sharedPlans.first),
+        );
+        if (!_likedPlans.any((p) => p.id == planId)) {
+          _likedPlans.insert(0, liked);
+        }
+      }
+      notifyListeners();
+    } catch (e) {
+      // 실패 시 롤백
+      if (alreadyLiked) {
+        _likedPlanIds.add(planId);
+      } else {
+        _likedPlanIds.remove(planId);
+      }
+      debugPrint('좋아요 처리 실패: $e');
+      notifyListeners();
     }
   }
 

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/meal_plan.dart';
 import '../../providers/meal_plan_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../utils/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -23,11 +24,9 @@ class _HistoryScreenState extends State<HistoryScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<MealPlanProvider>();
-      // 내 식단 목록은 이미 로드돼 있을 수 있으므로 로드되지 않은 경우만
-      if (provider.mealPlans.isEmpty) {
-        // UserProvider에서 userId를 가져오는 건 caller에서 처리되어야 함
-        // 여기선 이미 로드된 데이터를 활용
+      final userId = context.read<UserProvider>().userId;
+      if (userId.isNotEmpty) {
+        context.read<MealPlanProvider>().loadLikedPlans(userId);
       }
     });
   }
@@ -91,10 +90,13 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildLikedPlans(MealPlanProvider provider) {
-    // 커뮤니티에서 좋아요한 공유 식단 표시
-    final plans = provider.sharedPlans.where((p) => p.likes > 0).toList();
+    final plans = provider.likedPlans;
     if (plans.isEmpty) {
-      return _buildEmpty('좋아요한 식단이 없어요', '커뮤니티에서 마음에 드는 식단에\n좋아요를 눌러보세요!', Icons.favorite_border);
+      return _buildEmpty(
+        '좋아요한 식단이 없어요',
+        '커뮤니티에서 마음에 드는 식단에\n좋아요를 눌러보세요!',
+        Icons.favorite_border,
+      );
     }
     return _buildPlanList(plans);
   }
