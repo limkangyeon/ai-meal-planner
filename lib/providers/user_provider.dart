@@ -144,6 +144,21 @@ class UserProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// 프로필 편집 (이름 + 사진)
+  Future<void> updateProfileWithPhoto({
+    required String displayName,
+    String? photoUrl,
+  }) async {
+    if (_userProfile == null) return;
+    _userProfile = _userProfile!.copyWith(
+      displayName: displayName,
+      photoUrl: photoUrl,
+      updatedAt: DateTime.now(),
+    );
+    await _saveUserProfile();
+    notifyListeners();
+  }
+
   /// 프로필 업데이트
   Future<bool> updateProfile({
     String? displayName,

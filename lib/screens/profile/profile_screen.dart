@@ -223,7 +223,7 @@ class ProfileScreen extends StatelessWidget {
             _buildMenuItem(
               context,
               icon: Icons.person_outline,
-              title: '프로필 편집 (이름)',
+              title: '프로필 편집',
               onTap: () => context.push('/edit-profile'),
             ),
             _buildDivider(),
