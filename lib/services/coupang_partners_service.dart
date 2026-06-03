@@ -22,24 +22,24 @@ class CoupangPartnersService {
   factory CoupangPartnersService() => _instance;
   CoupangPartnersService._internal();
 
-  /// 제품 검색 링크 생성
-  /// 
-  /// [keyword] 검색할 재료/제품 키워드
-  /// 
-  /// 예: getProductLink('당근') → 쿠팡에서 '당근' 검색 결과로 연결
+  /// 파트너 코드 설정 여부
+  bool get hasPartnerCode =>
+      _partnerCode.isNotEmpty && _partnerCode != 'YOUR_PARTNER_CODE';
+
+  /// 제품 검색 링크 생성 (파트너 코드 있으면 제휴 링크, 없으면 직접 검색)
   String getProductLink(String keyword) {
     final encodedKeyword = Uri.encodeComponent(keyword);
-    // 쿠팡 파트너스 제휴 링크 형식
-    return '$_baseUrl/$_partnerCode?itemId=&vendorItemId=&q=$encodedKeyword';
+    if (hasPartnerCode) {
+      // 쿠팡 파트너스 제휴 링크 (검색 페이지)
+      return '$_baseUrl/$_partnerCode?subId=eatplan&pageType=SEARCH&searchKeyword=$encodedKeyword';
+    } else {
+      // 파트너 코드 없을 때 직접 검색 (기능은 동작, 수수료만 없음)
+      return '$_searchBaseUrl?q=$encodedKeyword';
+    }
   }
 
   /// 여러 재료를 한번에 검색하는 링크 생성
-  /// 
-  /// [ingredients] 검색할 재료 목록
-  /// 
-  /// 예: getBulkShoppingLink(['당근', '양파', '감자'])
   String getBulkShoppingLink(List<String> ingredients) {
-    // 핵심 재료 몇 개만 검색어로 사용 (너무 많으면 검색 결과가 안 좋음)
     final limitedIngredients = ingredients.take(5).toList();
     final keywords = limitedIngredients.join(' ');
     return getProductLink(keywords);

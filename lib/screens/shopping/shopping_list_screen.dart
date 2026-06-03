@@ -270,7 +270,9 @@ class _ShoppingListScreenState extends State<ShoppingListScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            CoupangPartnersService.shortNotice,
+            _coupangService.hasPartnerCode
+                ? CoupangPartnersService.shortNotice
+                : '* 쿠팡에서 직접 검색합니다',
             style: TextStyle(
               fontSize: 11,
               color: Colors.grey.shade600,
