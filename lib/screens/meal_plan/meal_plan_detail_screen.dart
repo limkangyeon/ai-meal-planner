@@ -431,29 +431,113 @@ class _MealPlanDetailScreenState extends State<MealPlanDetailScreen> {
   }
 
   void _regenerateMeal(DateTime date, MealType mealType) {
+    final reasonController = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('식단 재생성'),
-        content: const Text('이 끼니를 다시 추천받으시겠습니까?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('취소'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: 재생성 로직
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('재생성 기능은 준비 중입니다')),
-              );
-            },
-            child: const Text('재생성'),
-          ),
-        ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) {
+          bool isLoading = false;
+
+          return AlertDialog(
+            title: Text('${mealType.displayName} 재생성'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${_formatDate(date)} ${mealType.displayName}을\n새로 추천받으시겠습니까?',
+                  style: const TextStyle(height: 1.5),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: reasonController,
+                  decoration: const InputDecoration(
+                    labelText: '재생성 이유 (선택)',
+                    hintText: '예: 버섯이 싫어요, 더 가벼운 메뉴로',
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isLoading ? null : () => Navigator.pop(ctx),
+                child: const Text('취소'),
+              ),
+              ElevatedButton(
+                onPressed: isLoading
+                    ? null
+                    : () async {
+                        final mealPlan = _mealPlan;
+                        if (mealPlan == null) return;
+
+                        final userProfile =
+                            context.read<UserProvider>().userProfile;
+                        if (userProfile == null) return;
+
+                        setState(() => isLoading = true);
+
+                        final success = await context
+                            .read<MealPlanProvider>()
+                            .regenerateMeal(
+                              planId: mealPlan.id,
+                              date: date,
+                              mealType: mealType,
+                              userProfile: userProfile,
+                              reason: reasonController.text.isNotEmpty
+                                  ? reasonController.text
+                                  : null,
+                            );
+
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+
+                        if (success) {
+                          // 로컬 상태 갱신
+                          final updated = await context
+                              .read<MealPlanProvider>()
+                              .getMealPlan(mealPlan.id);
+                          if (mounted && updated != null) {
+                            setState(() => _mealPlan = updated);
+                          }
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('새 메뉴가 추천됐습니다! 🎉'),
+                                backgroundColor: AppTheme.primaryGreen,
+                              ),
+                            );
+                          }
+                        } else {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  context.read<MealPlanProvider>().error ??
+                                      '재생성에 실패했습니다',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                child: isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Text('재생성'),
+              ),
+            ],
+          );
+        },
       ),
     );
+
+    reasonController.dispose();
   }
 
   void _confirmRegenerate() {

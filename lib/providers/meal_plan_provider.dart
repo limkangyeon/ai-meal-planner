@@ -149,34 +149,43 @@ class MealPlanProvider extends ChangeNotifier {
         return false;
       }
 
-      // 로컬 상태 업데이트
-      if (_currentPlan != null && _currentPlan!.id == planId) {
-        final updatedDailyPlans = _currentPlan!.dailyPlans.map((daily) {
+      // 로컬 상태 업데이트 헬퍼
+      List<DailyMealPlan> _updateDailyPlans(List<DailyMealPlan> dailyPlans) {
+        return dailyPlans.map((daily) {
           if (daily.date.year == date.year &&
               daily.date.month == date.month &&
               daily.date.day == date.day) {
-            final updatedMeals = daily.meals.map((meal) {
-              if (meal.type == mealType) {
-                return newMeal;
-              }
-              return meal;
-            }).toList();
+            final updatedMeals = daily.meals
+                .map((meal) => meal.type == mealType ? newMeal : meal)
+                .toList();
             return DailyMealPlan(date: daily.date, meals: updatedMeals);
           }
           return daily;
         }).toList();
+      }
 
+      // currentPlan 업데이트
+      if (_currentPlan != null && _currentPlan!.id == planId) {
+        final updatedDailyPlans = _updateDailyPlans(_currentPlan!.dailyPlans);
         _currentPlan = _currentPlan!.copyWith(
           dailyPlans: updatedDailyPlans,
           updatedAt: DateTime.now(),
         );
-
         // Firestore 업데이트
         await _firestore.collection('mealPlans').doc(planId).update({
           'dailyPlans': updatedDailyPlans.map((d) => d.toJson()).toList(),
           'updatedAt': Timestamp.fromDate(DateTime.now()),
         });
       }
+
+      // mealPlans 리스트도 업데이트
+      _mealPlans = _mealPlans.map((p) {
+        if (p.id != planId) return p;
+        return p.copyWith(
+          dailyPlans: _updateDailyPlans(p.dailyPlans),
+          updatedAt: DateTime.now(),
+        );
+      }).toList();
 
       return true;
     } catch (e) {
