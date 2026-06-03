@@ -149,8 +149,8 @@ class MealPlanProvider extends ChangeNotifier {
         return false;
       }
 
-      // 로컬 상태 업데이트 헬퍼
-      List<DailyMealPlan> _updateDailyPlans(List<DailyMealPlan> dailyPlans) {
+      // 특정 날짜/끼니를 새 메뉴로 교체하는 헬퍼
+      List<DailyMealPlan> applyNewMeal(List<DailyMealPlan> dailyPlans) {
         return dailyPlans.map((daily) {
           if (daily.date.year == date.year &&
               daily.date.month == date.month &&
@@ -166,12 +166,11 @@ class MealPlanProvider extends ChangeNotifier {
 
       // currentPlan 업데이트
       if (_currentPlan != null && _currentPlan!.id == planId) {
-        final updatedDailyPlans = _updateDailyPlans(_currentPlan!.dailyPlans);
+        final updatedDailyPlans = applyNewMeal(_currentPlan!.dailyPlans);
         _currentPlan = _currentPlan!.copyWith(
           dailyPlans: updatedDailyPlans,
           updatedAt: DateTime.now(),
         );
-        // Firestore 업데이트
         await _firestore.collection('mealPlans').doc(planId).update({
           'dailyPlans': updatedDailyPlans.map((d) => d.toJson()).toList(),
           'updatedAt': Timestamp.fromDate(DateTime.now()),
@@ -182,7 +181,7 @@ class MealPlanProvider extends ChangeNotifier {
       _mealPlans = _mealPlans.map((p) {
         if (p.id != planId) return p;
         return p.copyWith(
-          dailyPlans: _updateDailyPlans(p.dailyPlans),
+          dailyPlans: applyNewMeal(p.dailyPlans),
           updatedAt: DateTime.now(),
         );
       }).toList();
